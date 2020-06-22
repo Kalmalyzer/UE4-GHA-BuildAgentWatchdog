@@ -26,43 +26,47 @@ type Jobs struct {
 	Jobs []Job `json:"jobs"`
 }
 
-func getQueuedWorkflows(client *http.Client, organization string, repository string) Workflows {
+func getQueuedWorkflows(client *http.Client, organization string, repository string) (Workflows, error) {
 
 	uri := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/runs?status=queued", organization, repository)
 	request, err := http.NewRequest("GET", uri, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
 	response, err := client.Do(request)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return Workflows{}, err
 	}
 
 	defer response.Body.Close()
 
 	var workflows Workflows
 	if err := json.NewDecoder(response.Body).Decode(&workflows); err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return Workflows{}, err
 	}
 
-	return workflows
+	return workflows, nil
 }
 
-func getJobsForRun(client *http.Client, run Run) Jobs {
+func getJobsForRun(client *http.Client, run Run) (Jobs, error) {
 
 	request, err := http.NewRequest("GET", run.JobsUrl, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
 	response, err := client.Do(request)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return Jobs{}, err
 	}
 
 	defer response.Body.Close()
 
 	var jobs Jobs
 	if err := json.NewDecoder(response.Body).Decode(&jobs); err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return Jobs{}, err
 	}
 
-	return jobs
+	return jobs, nil
 }
 
 func getRunnersNeededByQueuedJobs(jobs []Job) []string {
@@ -96,18 +100,24 @@ func deduplicateRunners(runners []string) []string {
 	return uniqueRunners
 }
 
-func GetRunnersWaitedOn(client *http.Client, organization string, repository string) []string {
+func GetRunnersWaitedOn(client *http.Client, organization string, repository string) ([]string, error) {
 
-	workflows := getQueuedWorkflows(client, organization, repository)
+	workflows, err := getQueuedWorkflows(client, organization, repository)
+	if err != nil {
+		return nil, err
+	}
 
 	var runners []string
 
 	for _, run := range workflows.WorkflowRuns {
-		jobs := getJobsForRun(client, run)
+		jobs, err := getJobsForRun(client, run)
+		if err != nil {
+			return nil, err
+		}
 		runners = append(runners, getRunnersNeededByQueuedJobs(jobs.Jobs)...)
 	}
 
 	uniqueRunners := deduplicateRunners(runners)
 
-	return uniqueRunners
+	return uniqueRunners, nil
 }

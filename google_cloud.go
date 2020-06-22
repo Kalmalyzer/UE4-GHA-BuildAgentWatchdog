@@ -11,15 +11,14 @@ type TerminatedInstance struct {
 	RunnerName   string
 }
 
-func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project string, zone string) []TerminatedInstance {
+func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project string, zone string) ([]TerminatedInstance, error) {
 
 	instancesCall := computeService.Instances.List(project, zone)
 	instances, err := instancesCall.Do()
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return nil, err
 	}
-
-	//	log.Println(instances)
 
 	var terminatedInstances []TerminatedInstance
 
@@ -38,7 +37,7 @@ func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project s
 		}
 	}
 
-	return terminatedInstances
+	return terminatedInstances, nil
 }
 
 func GetInstancesToStart(runnersWaitedOn []string, stoppedInstances []TerminatedInstance) []TerminatedInstance {
@@ -64,7 +63,7 @@ func GetInstancesToStart(runnersWaitedOn []string, stoppedInstances []Terminated
 	return instancesToStart
 }
 
-func StartInstances(computeService *compute.Service, project string, zone string, instancesToStart []TerminatedInstance) {
+func StartInstances(computeService *compute.Service, project string, zone string, instancesToStart []TerminatedInstance) error {
 
 	for _, instance := range instancesToStart {
 
@@ -72,7 +71,10 @@ func StartInstances(computeService *compute.Service, project string, zone string
 		instanceStartCall := computeService.Instances.Start(project, zone, instance.InstanceName)
 		_, err := instanceStartCall.Do()
 		if err != nil {
-			log.Fatalln(err)
+			log.Println(err)
+			return err
 		}
 	}
+
+	return nil
 }

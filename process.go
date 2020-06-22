@@ -7,13 +7,19 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-func Process(computeService *compute.Service, client *http.Client, project string, zone string, gitHubOrganization string, gitHubRepository string) {
+func Process(computeService *compute.Service, client *http.Client, project string, zone string, gitHubOrganization string, gitHubRepository string) error {
 
-	runnersWaitedOn := GetRunnersWaitedOn(client, gitHubOrganization, gitHubRepository)
+	runnersWaitedOn, err := GetRunnersWaitedOn(client, gitHubOrganization, gitHubRepository)
+	if err != nil {
+		return err
+	}
 
 	log.Printf("Runners waited on: %v\n", runnersWaitedOn)
 
-	stoppedInstances := GetStoppedOnDemandComputeWorkers(computeService, project, zone)
+	stoppedInstances, err := GetStoppedOnDemandComputeWorkers(computeService, project, zone)
+	if err != nil {
+		return err
+	}
 
 	log.Printf("Stopped instances: %v\n", stoppedInstances)
 
@@ -21,5 +27,9 @@ func Process(computeService *compute.Service, client *http.Client, project strin
 
 	log.Printf("Instances to start: %v\n", instancesToStart)
 
-	StartInstances(computeService, project, zone, instancesToStart)
+	if err := StartInstances(computeService, project, zone, instancesToStart); err != nil {
+		return err
+	}
+
+	return nil
 }
