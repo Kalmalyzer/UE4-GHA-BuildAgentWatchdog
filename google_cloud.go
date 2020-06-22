@@ -6,12 +6,12 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-type TerminatedInstance struct {
+type Instance struct {
 	InstanceName string
 	RunnerName   string
 }
 
-func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project string, zone string) ([]TerminatedInstance, error) {
+func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project string, zone string) ([]Instance, error) {
 
 	instancesCall := computeService.Instances.List(project, zone)
 	instances, err := instancesCall.Do()
@@ -20,7 +20,7 @@ func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project s
 		return nil, err
 	}
 
-	var terminatedInstances []TerminatedInstance
+	var terminatedInstances []Instance
 
 	for _, instance := range instances.Items {
 
@@ -33,16 +33,16 @@ func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project s
 		}
 
 		if (runnerName != "") && (instance.Status == "TERMINATED") {
-			terminatedInstances = append(terminatedInstances, TerminatedInstance{InstanceName: instance.Name, RunnerName: runnerName})
+			terminatedInstances = append(terminatedInstances, Instance{InstanceName: instance.Name, RunnerName: runnerName})
 		}
 	}
 
 	return terminatedInstances, nil
 }
 
-func GetInstancesToStart(runnersWaitedOn []string, stoppedInstances []TerminatedInstance) []TerminatedInstance {
-	stoppedInstancesMap := make(map[string]TerminatedInstance)
-	instancesToStartMap := make(map[string]TerminatedInstance)
+func GetInstancesToStart(runnersWaitedOn []string, stoppedInstances []Instance) []Instance {
+	stoppedInstancesMap := make(map[string]Instance)
+	instancesToStartMap := make(map[string]Instance)
 
 	for _, instance := range stoppedInstances {
 		stoppedInstancesMap[instance.RunnerName] = instance
@@ -54,7 +54,7 @@ func GetInstancesToStart(runnersWaitedOn []string, stoppedInstances []Terminated
 		}
 	}
 
-	var instancesToStart []TerminatedInstance
+	var instancesToStart []Instance
 
 	for _, instance := range instancesToStartMap {
 		instancesToStart = append(instancesToStart, instance)
@@ -63,7 +63,7 @@ func GetInstancesToStart(runnersWaitedOn []string, stoppedInstances []Terminated
 	return instancesToStart
 }
 
-func StartInstances(computeService *compute.Service, project string, zone string, instancesToStart []TerminatedInstance) error {
+func StartInstances(computeService *compute.Service, project string, zone string, instancesToStart []Instance) error {
 
 	for _, instance := range instancesToStart {
 

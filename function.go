@@ -37,11 +37,15 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	gitHubOrganization := os.Getenv("GITHUB_ORGANIZATION")
 	gitHubRepository := os.Getenv("GITHUB_REPOSITORY")
 
-	if err := Process(computeService, client, project, zone, gitHubOrganization, gitHubRepository); err != nil {
+	startedInstances, err := Process(computeService, client, project, zone, gitHubOrganization, gitHubRepository)
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error during processing: %v", err)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
+	for _, instance := range startedInstances {
+		fmt.Fprintf(w, "Started instance: instance %s / runner %s\n", instance.InstanceName, instance.RunnerName)
+	}
 }
