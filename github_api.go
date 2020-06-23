@@ -71,6 +71,28 @@ func getInProgressWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string
 	return getWorkflowRunsWithStatus(gitHubApiSite, organization, repository, "in_progress")
 }
 
+func getWorkflow(gitHubApiSite *GitHubApiSite, organization string, repository string, workflow_id string) (GitHubApiWorkflow, error) {
+
+	uri := fmt.Sprintf("%s/repos/%s/%s/actions/workflows/%s", gitHubApiSite.BaseUrl.String(), organization, repository, workflow_id)
+	request, err := http.NewRequest("GET", uri, nil)
+	request.Header.Add("Accept", "application/vnd.github.v3+json")
+	response, err := gitHubApiSite.Client.Do(request)
+	if err != nil {
+		log.Println(err)
+		return GitHubApiWorkflow{}, err
+	}
+
+	defer response.Body.Close()
+
+	var workflow GitHubApiWorkflow
+	if err := json.NewDecoder(response.Body).Decode(&workflow); err != nil {
+		log.Println(err)
+		return GitHubApiWorkflow{}, err
+	}
+
+	return workflow, nil
+}
+
 func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, repository string, commit string, path string) (string, error) {
 
 	uri := fmt.Sprintf("%s/%s/%s/raw/%s/%s", gitHubApiSite.BaseUrl.String(), organization, repository, commit, path)
