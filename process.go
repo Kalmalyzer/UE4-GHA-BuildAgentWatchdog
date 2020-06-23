@@ -2,7 +2,6 @@ package watchdog
 
 import (
 	"log"
-	"net/http"
 	"regexp"
 
 	"google.golang.org/api/compute/v1"
@@ -39,9 +38,9 @@ func deduplicateRunners(runners []string) []string {
 	return uniqueRunners
 }
 
-func GetRunnersWaitedOn(client *http.Client, organization string, repository string) ([]string, error) {
+func GetRunnersWaitedOn(gitHubApiSite *GitHubApiSite, organization string, repository string) ([]string, error) {
 
-	workflowRuns, err := getQueuedWorkflowRuns(client, organization, repository)
+	workflowRuns, err := getQueuedWorkflowRuns(gitHubApiSite, organization, repository)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +48,7 @@ func GetRunnersWaitedOn(client *http.Client, organization string, repository str
 	var runners []string
 
 	for _, run := range workflowRuns {
-		jobs, err := getJobsForRun(client, run)
+		jobs, err := getJobsForRun(gitHubApiSite, run)
 		if err != nil {
 			return nil, err
 		}
@@ -61,9 +60,9 @@ func GetRunnersWaitedOn(client *http.Client, organization string, repository str
 	return uniqueRunners, nil
 }
 
-func Process(computeService *compute.Service, client *http.Client, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]Instance, error) {
+func Process(computeService *compute.Service, gitHubApiSite *GitHubApiSite, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]Instance, error) {
 
-	runnersWaitedOn, err := GetRunnersWaitedOn(client, gitHubOrganization, gitHubRepository)
+	runnersWaitedOn, err := GetRunnersWaitedOn(gitHubApiSite, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		return nil, err
 	}

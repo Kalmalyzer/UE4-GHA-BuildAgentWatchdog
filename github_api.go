@@ -39,12 +39,12 @@ type GitHubApiSite struct {
 	Client  *http.Client
 }
 
-func getWorkflowRunsWithStatus(client *http.Client, organization string, repository string, status string) ([]GitHubApiRun, error) {
+func getWorkflowRunsWithStatus(gitHubApiSite *GitHubApiSite, organization string, repository string, status string) ([]GitHubApiRun, error) {
 
-	uri := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/runs?status=%s", organization, repository, status)
+	uri := fmt.Sprintf("%s/repos/%s/%s/actions/runs?status=%s", gitHubApiSite.BaseUrl.String(), organization, repository, status)
 	request, err := http.NewRequest("GET", uri, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
-	response, err := client.Do(request)
+	response, err := gitHubApiSite.Client.Do(request)
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -61,21 +61,21 @@ func getWorkflowRunsWithStatus(client *http.Client, organization string, reposit
 	return workflowRuns.WorkflowRuns, nil
 }
 
-func getQueuedWorkflowRuns(client *http.Client, organization string, repository string) ([]GitHubApiRun, error) {
+func getQueuedWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string, repository string) ([]GitHubApiRun, error) {
 
-	return getWorkflowRunsWithStatus(client, organization, repository, "queued")
+	return getWorkflowRunsWithStatus(gitHubApiSite, organization, repository, "queued")
 }
 
-func getInProgressWorkflowRuns(client *http.Client, organization string, repository string) ([]GitHubApiRun, error) {
+func getInProgressWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string, repository string) ([]GitHubApiRun, error) {
 
-	return getWorkflowRunsWithStatus(client, organization, repository, "in_progress")
+	return getWorkflowRunsWithStatus(gitHubApiSite, organization, repository, "in_progress")
 }
 
-func getWorkflowFile(gitHubSite *GitHubApiSite, organization string, repository string, commit string, path string) (string, error) {
+func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, repository string, commit string, path string) (string, error) {
 
-	uri := fmt.Sprintf("%s/%s/%s/raw/%s/%s", gitHubSite.BaseUrl.String(), organization, repository, commit, path)
+	uri := fmt.Sprintf("%s/%s/%s/raw/%s/%s", gitHubApiSite.BaseUrl.String(), organization, repository, commit, path)
 	request, err := http.NewRequest("GET", uri, nil)
-	response, err := gitHubSite.Client.Do(request)
+	response, err := gitHubApiSite.Client.Do(request)
 	if err != nil {
 		log.Println(err)
 		return "", err
@@ -96,11 +96,11 @@ func getWorkflowFile(gitHubSite *GitHubApiSite, organization string, repository 
 	return string(content), nil
 }
 
-func getJobsForRun(client *http.Client, run GitHubApiRun) ([]GitHubApiJob, error) {
+func getJobsForRun(gitHubApiSite *GitHubApiSite, run GitHubApiRun) ([]GitHubApiJob, error) {
 
 	request, err := http.NewRequest("GET", run.JobsUrl, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
-	response, err := client.Do(request)
+	response, err := gitHubApiSite.Client.Do(request)
 	if err != nil {
 		log.Println(err)
 		return nil, err

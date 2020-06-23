@@ -7,13 +7,14 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"google.golang.org/api/compute/v1"
 )
 
 var computeService *compute.Service
-var client *http.Client
+var gitHubApiSite *GitHubApiSite
 
 func init() {
 	ctx := context.Background()
@@ -23,7 +24,12 @@ func init() {
 		log.Fatalln(err)
 	}
 
-	client = &http.Client{}
+	gitHubApiUrl, err := url.Parse("https://api.github.com")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	gitHubApiSite = &GitHubApiSite{BaseUrl: *gitHubApiUrl, Client: &http.Client{}}
 }
 
 type Result struct {
@@ -42,7 +48,7 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	gitHubOrganization := os.Getenv("GITHUB_ORGANIZATION")
 	gitHubRepository := os.Getenv("GITHUB_REPOSITORY")
 
-	startedInstances, err := Process(computeService, client, project, zone, gitHubOrganization, gitHubRepository)
+	startedInstances, err := Process(computeService, gitHubApiSite, project, zone, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error during processing: %v", err)
