@@ -26,9 +26,9 @@ type Jobs struct {
 	Jobs []Job `json:"jobs"`
 }
 
-func getQueuedWorkflows(client *http.Client, organization string, repository string) (Workflows, error) {
+func getWorkflows(client *http.Client, organization string, repository string, status string) (Workflows, error) {
 
-	uri := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/runs?status=queued", organization, repository)
+	uri := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/runs?status=%s", organization, repository, status)
 	request, err := http.NewRequest("GET", uri, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
 	response, err := client.Do(request)
@@ -46,6 +46,11 @@ func getQueuedWorkflows(client *http.Client, organization string, repository str
 	}
 
 	return workflows, nil
+}
+
+func getQueuedWorkflows(client *http.Client, organization string, repository string) (Workflows, error) {
+
+	return getWorkflows(client, organization, repository, "queued")
 }
 
 func getJobsForRun(client *http.Client, run Run) (Jobs, error) {
