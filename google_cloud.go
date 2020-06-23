@@ -7,8 +7,8 @@ import (
 )
 
 type Instance struct {
-	InstanceName string
-	RunnerName   string
+	InstanceName string `json:"instance_name"`
+	RunnerName   string `json:"runner_name"`
 }
 
 func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project string, zone string) ([]Instance, error) {

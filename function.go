@@ -2,6 +2,7 @@ package watchdog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -25,6 +26,10 @@ func init() {
 	client = &http.Client{}
 }
 
+type Result struct {
+	StartedInstances []Instance `json:"started_instances"`
+}
+
 func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	if _, err := ioutil.ReadAll(r.Body); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -44,8 +49,17 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	for _, instance := range startedInstances {
-		fmt.Fprintf(w, "Started instance: instance %s / runner %s\n", instance.InstanceName, instance.RunnerName)
+	if startedInstances == nil {
+		startedInstances = make([]Instance, 0)
 	}
+	result := &Result{StartedInstances: startedInstances}
+
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error during result json encoding: %v", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
 }
