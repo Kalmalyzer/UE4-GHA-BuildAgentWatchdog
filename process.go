@@ -38,14 +38,14 @@ func deduplicateRunners(runners []string) []string {
 	return uniqueRunners
 }
 
-func getRunnersRequiredByWorkflowRun(jobs []GitHubApiJob, jobsAndRunnersInWorkflowFile map[string]RunsOn) []string {
+func getRunnersRequiredByWorkflowRun(jobs []*github.WorkflowJob, jobsAndRunnersInWorkflowFile map[string]RunsOn) []string {
 
 	var runnersRequired []string
 
 	for _, job := range jobs {
-		if job.Status != "completed" {
-			if _, exists := jobsAndRunnersInWorkflowFile[job.Name]; exists {
-				runnersRequired = append(runnersRequired, jobsAndRunnersInWorkflowFile[job.Name]...)
+		if *job.Status != "completed" {
+			if _, exists := jobsAndRunnersInWorkflowFile[*job.Name]; exists {
+				runnersRequired = append(runnersRequired, jobsAndRunnersInWorkflowFile[*job.Name]...)
 			}
 		}
 	}
@@ -103,7 +103,7 @@ func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHu
 
 		log.Printf("jobs and runners in workflow file: %v\n", jobsAndRunnersInWorkflowFile)
 
-		jobs, err := getJobsForRun(gitHubApiSite, gitHubOrganization, gitHubRepository, *activeWorkflowRun.ID)
+		jobs, err := getJobsForRun(ctx, gitHubClient, gitHubOrganization, gitHubRepository, *activeWorkflowRun.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +180,7 @@ func Process(ctx context.Context, computeService *compute.Service, gitHubApiSite
 		return nil, err
 	}
 
-	if err := stopInstances(computeService, project, zone, instancesToStart); err != nil {
+	if err := stopInstances(computeService, project, zone, instancesToStop); err != nil {
 		return nil, err
 	}
 

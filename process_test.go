@@ -3,14 +3,23 @@ package watchdog
 import (
 	"reflect"
 	"testing"
+
+	"github.com/google/go-github/v32/github"
 )
 
 func TestGetRunnersRequiredByWorkflowRun(t *testing.T) {
 
-	jobs := []GitHubApiJob{
-		{Name: "job1", Status: "queued"},
-		{Name: "job2", Status: "in_progress"},
-		{Name: "job3", Status: "completed"},
+	job1Name := "job1"
+	job2Name := "job2"
+	job3Name := "job3"
+	queuedStatus := "queued"
+	inProgressStatus := "in_progress"
+	completedStatus := "completed"
+
+	jobs := []*github.WorkflowJob{
+		{Name: &job1Name, Status: &queuedStatus},
+		{Name: &job2Name, Status: &inProgressStatus},
+		{Name: &job3Name, Status: &completedStatus},
 	}
 
 	jobsAndRunnersInWorkflowFile := map[string]RunsOn{

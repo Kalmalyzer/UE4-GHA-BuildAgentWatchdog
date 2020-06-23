@@ -2,7 +2,6 @@ package watchdog
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -12,15 +11,6 @@ import (
 
 	"github.com/google/go-github/v32/github"
 )
-
-type GitHubApiJob struct {
-	Status string `json:"status"`
-	Name   string `json:"name"`
-}
-
-type GitHubApiJobs struct {
-	Jobs []GitHubApiJob `json:"jobs"`
-}
 
 type GitHubApiWorkflow struct {
 	Path string `json:"path"`
@@ -107,22 +97,10 @@ func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, reposito
 	return string(content), nil
 }
 
-func getJobsForRun(gitHubApiSite *GitHubApiSite, organization string, repository string, run_id int64) ([]GitHubApiJob, error) {
+func getJobsForRun(ctx context.Context, gitHubClient *github.Client, organization string, repository string, runId int64) ([]*github.WorkflowJob, error) {
 
-	uri := fmt.Sprintf("%s/repos/%s/%s/actions/jobs/%d", gitHubApiSite.BaseApiUrl.String(), organization, repository, run_id)
-	log.Println(uri)
-	request, err := http.NewRequest("GET", uri, nil)
-	request.Header.Add("Accept", "application/vnd.github.v3+json")
-	response, err := gitHubApiSite.Client.Do(request)
+	jobs, _, err := gitHubClient.Actions.ListWorkflowJobs(ctx, organization, repository, runId, nil)
 	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
-	defer response.Body.Close()
-
-	var jobs GitHubApiJobs
-	if err := json.NewDecoder(response.Body).Decode(&jobs); err != nil {
 		log.Println(err)
 		return nil, err
 	}
