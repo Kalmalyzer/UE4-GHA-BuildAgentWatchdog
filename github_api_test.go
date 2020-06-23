@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/google/go-github/v32/github"
 )
 
 func testingHTTPClient(handler http.Handler) (*http.Client, func()) {
@@ -130,14 +132,13 @@ func TestGetWorkflow(t *testing.T) {
 	}))
 	defer teardown()
 
-	apiUrl, _ := url.Parse("http://api.example.com")
-	webUrl, _ := url.Parse("http://example.com")
+	context := context.Background()
 
-	gitHubSite := &GitHubApiSite{BaseApiUrl: *apiUrl, BaseWebUrl: *webUrl, Client: httpClient}
+	gitHubClient := github.NewClient(httpClient)
 
 	t.Run("Fetch workflow that exists", func(t *testing.T) {
 
-		workflow, err := getWorkflow(gitHubSite, "MyOrg", "MyRepo", 12345678)
+		workflow, err := getWorkflow(context, gitHubClient, "MyOrg", "MyRepo", 12345678)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -150,7 +151,7 @@ func TestGetWorkflow(t *testing.T) {
 
 	t.Run("Fetch workflow that does not exist", func(t *testing.T) {
 
-		_, err := getWorkflow(gitHubSite, "MyOrg2", "MyRepo2", 12345679)
+		_, err := getWorkflow(context, gitHubClient, "MyOrg2", "MyRepo2", 12345679)
 		if err == nil {
 			t.Fatal("Should have failed")
 		}
