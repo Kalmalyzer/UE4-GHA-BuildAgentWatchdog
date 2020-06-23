@@ -89,7 +89,7 @@ func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHu
 
 		log.Printf("workflow: %v\n", workflow)
 
-		workflowFile, err := getWorkflowFile(gitHubApiSite, gitHubOrganization, gitHubRepository, *activeWorkflowRun.HeadSHA, workflow.Path)
+		workflowFile, err := getWorkflowFile(gitHubApiSite, gitHubOrganization, gitHubRepository, *activeWorkflowRun.HeadSHA, *workflow.Path)
 		if err != nil {
 			return nil, err
 		}

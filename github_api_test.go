@@ -144,7 +144,7 @@ func TestGetWorkflow(t *testing.T) {
 		}
 
 		expectedPath := ".github/workflows/blank.yml"
-		if workflow.Path != expectedPath {
+		if *workflow.Path != expectedPath {
 			t.Fatalf("workflow.Path expected: \"%s\", actual: \"%s\"", expectedPath, workflow.Path)
 		}
 	})

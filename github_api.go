@@ -12,10 +12,6 @@ import (
 	"github.com/google/go-github/v32/github"
 )
 
-type GitHubApiWorkflow struct {
-	Path string `json:"path"`
-}
-
 type GitHubApiSite struct {
 	BaseApiUrl url.URL
 	BaseWebUrl url.URL
@@ -61,15 +57,15 @@ func getActiveWorkflowRuns(ctx context.Context, gitHubClient *github.Client, org
 	return activeWorkflowRuns, nil
 }
 
-func getWorkflow(context context.Context, gitHubClient *github.Client, organization string, repository string, workflow_id int64) (GitHubApiWorkflow, error) {
+func getWorkflow(context context.Context, gitHubClient *github.Client, organization string, repository string, workflow_id int64) (*github.Workflow, error) {
 
 	workflow, _, err := gitHubClient.Actions.GetWorkflowByID(context, organization, repository, workflow_id)
 	if err != nil {
 		log.Println(err)
-		return GitHubApiWorkflow{}, err
+		return nil, err
 	}
 
-	return GitHubApiWorkflow{Path: *workflow.Path}, nil
+	return workflow, nil
 }
 
 func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, repository string, commit string, path string) (string, error) {
