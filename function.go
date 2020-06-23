@@ -59,7 +59,4 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Error during result json encoding: %v", err)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
 }
