@@ -1,17 +1,32 @@
 package watchdog
 
 import (
+	"context"
 	"fmt"
-	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 )
 
+func testingHTTPClient(handler http.Handler) (*http.Client, func()) {
+	s := httptest.NewServer(handler)
+
+	cli := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(_ context.Context, network, _ string) (net.Conn, error) {
+				return net.Dial(network, s.Listener.Addr().String())
+			},
+		},
+	}
+
+	return cli, s.Close
+}
+
 func TestGetWorkflowFile(t *testing.T) {
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient, teardown := testingHTTPClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.URL.String() == "/MyOrg/MyRepo/raw/12345678/.github/workflows/build.yaml" {
 			w.Header().Set("Content-Type", "text/plain")
@@ -66,11 +81,11 @@ func TestGetWorkflowFile(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
-	defer ts.Close()
-	u, _ := url.Parse(ts.URL)
-	log.Println(u)
+	defer teardown()
 
-	gitHubSite := &GitHubApiSite{BaseUrl: *u, Client: ts.Client()}
+	u, _ := url.Parse("http://example.com")
+
+	gitHubSite := &GitHubApiSite{BaseUrl: *u, Client: httpClient}
 
 	t.Run("Fetch workflow file that exists", func(t *testing.T) {
 
