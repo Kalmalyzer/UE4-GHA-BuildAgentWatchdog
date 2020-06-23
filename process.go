@@ -1,8 +1,10 @@
 package watchdog
 
 import (
+	"context"
 	"log"
 
+	"github.com/google/go-github/v32/github"
 	"google.golang.org/api/compute/v1"
 )
 
@@ -49,7 +51,7 @@ func getRunnersRequiredByWorkflowRun(jobs []GitHubApiJob, jobsAndRunnersInWorkfl
 	return deduplicateRunners(runnersRequired)
 }
 
-func getRunnersRequired(gitHubApiSite *GitHubApiSite, gitHubOrganization string, gitHubRepository string) ([]string, error) {
+func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHubClient *github.Client, gitHubOrganization string, gitHubRepository string) ([]string, error) {
 
 	activeWorkflowRuns, err := getActiveWorkflowRuns(gitHubApiSite, gitHubOrganization, gitHubRepository)
 	if err != nil {
@@ -62,7 +64,7 @@ func getRunnersRequired(gitHubApiSite *GitHubApiSite, gitHubOrganization string,
 
 	for _, activeWorkflowRun := range activeWorkflowRuns {
 
-		workflow, err := getWorkflow(gitHubApiSite, gitHubOrganization, gitHubRepository, activeWorkflowRun.WorkflowId)
+		workflow, err := getWorkflow(ctx, gitHubClient, gitHubOrganization, gitHubRepository, activeWorkflowRun.WorkflowId)
 		if err != nil {
 			return nil, err
 		}
@@ -136,9 +138,9 @@ func getInstancesToStop(runnersRequired []string, onDemandInstances []OnDemandIn
 	return deduplicateInstances(instancesToStop)
 }
 
-func Process(computeService *compute.Service, gitHubApiSite *GitHubApiSite, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]OnDemandInstance, error) {
+func Process(ctx context.Context, computeService *compute.Service, gitHubApiSite *GitHubApiSite, gitHubClient *github.Client, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]OnDemandInstance, error) {
 
-	runnersRequired, err := getRunnersRequired(gitHubApiSite, gitHubOrganization, gitHubRepository)
+	runnersRequired, err := getRunnersRequired(ctx, gitHubApiSite, gitHubClient, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package watchdog
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/google/go-github/v32/github"
 )
 
 type GitHubApiRun struct {
@@ -16,7 +19,7 @@ type GitHubApiRun struct {
 	JobsUrl     string `json:"jobs_url"`
 	WorkflowUrl string `json:"workflow_url"`
 	HeadSha     string `json:"head_sha"`
-	WorkflowId  int    `json:"workflow_id"`
+	WorkflowId  int64  `json:"workflow_id"`
 }
 
 type GitHubApiWorkflowRuns struct {
@@ -90,26 +93,15 @@ func getActiveWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string, re
 	return activeWorkflowRuns, nil
 }
 
-func getWorkflow(gitHubApiSite *GitHubApiSite, organization string, repository string, workflow_id int) (GitHubApiWorkflow, error) {
+func getWorkflow(context context.Context, gitHubClient *github.Client, organization string, repository string, workflow_id int64) (GitHubApiWorkflow, error) {
 
-	uri := fmt.Sprintf("%s/repos/%s/%s/actions/workflows/%d", gitHubApiSite.BaseApiUrl.String(), organization, repository, workflow_id)
-	request, err := http.NewRequest("GET", uri, nil)
-	request.Header.Add("Accept", "application/vnd.github.v3+json")
-	response, err := gitHubApiSite.Client.Do(request)
+	workflow, _, err := gitHubClient.Actions.GetWorkflowByID(context, organization, repository, workflow_id)
 	if err != nil {
 		log.Println(err)
 		return GitHubApiWorkflow{}, err
 	}
 
-	defer response.Body.Close()
-
-	var workflow GitHubApiWorkflow
-	if err := json.NewDecoder(response.Body).Decode(&workflow); err != nil {
-		log.Println(err)
-		return GitHubApiWorkflow{}, err
-	}
-
-	return workflow, nil
+	return GitHubApiWorkflow{Path: *workflow.Path}, nil
 }
 
 func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, repository string, commit string, path string) (string, error) {
