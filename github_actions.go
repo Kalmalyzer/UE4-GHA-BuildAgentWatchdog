@@ -2,6 +2,7 @@ package watchdog
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -87,6 +88,10 @@ func getWorkflowFile(gitHubSite *GitHubSite, organization string, repository str
 	if err != nil {
 		log.Println(err)
 		return "", err
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return "", errors.New(response.Status)
 	}
 
 	return string(content), nil

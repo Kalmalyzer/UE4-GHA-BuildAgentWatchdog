@@ -72,9 +72,19 @@ func TestGetWorkflowFile(t *testing.T) {
 
 	gitHubSite := &GitHubSite{BaseUrl: *u, Client: ts.Client()}
 
-	_, err := getWorkflowFile(gitHubSite, "MyOrg", "MyRepo", "12345678", ".github/workflows/build.yaml")
-	if err != nil {
-		t.Error(err)
-	}
+	t.Run("Fetch workflow file that exists", func(t *testing.T) {
 
+		_, err := getWorkflowFile(gitHubSite, "MyOrg", "MyRepo", "12345678", ".github/workflows/build.yaml")
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("Fetch workflow file that does not exist", func(t *testing.T) {
+
+		_, err := getWorkflowFile(gitHubSite, "MyOrg2", "MyRepo2", "12345679", ".github/workflows/build.yaml")
+		if err == nil {
+			t.Fatal("Should have failed")
+		}
+	})
 }
