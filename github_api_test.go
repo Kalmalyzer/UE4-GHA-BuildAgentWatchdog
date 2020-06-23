@@ -70,7 +70,7 @@ func TestGetWorkflowFile(t *testing.T) {
 	u, _ := url.Parse(ts.URL)
 	log.Println(u)
 
-	gitHubSite := &GitHubSite{BaseUrl: *u, Client: ts.Client()}
+	gitHubSite := &GitHubApiSite{BaseUrl: *u, Client: ts.Client()}
 
 	t.Run("Fetch workflow file that exists", func(t *testing.T) {
 
