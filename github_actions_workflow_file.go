@@ -33,7 +33,7 @@ func (runsOn *RunsOn) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func getJobsInWorkflowFile(workflowFile string) (map[string]GitHubWorkflowYamlJob, error) {
+func parseWorkflowFile(workflowFile string) (map[string]GitHubWorkflowYamlJob, error) {
 
 	var jobs GitHubWorkflowYamlJobs
 
@@ -42,4 +42,26 @@ func getJobsInWorkflowFile(workflowFile string) (map[string]GitHubWorkflowYamlJo
 	}
 
 	return jobs.Jobs, nil
+}
+
+func getJobsAndRunnersInWorkflowFile(workflowFile string) (map[string]RunsOn, error) {
+
+	parsedWorkflowFile, err := parseWorkflowFile(workflowFile)
+	if err != nil {
+		return nil, err
+	}
+
+	jobsAndRunners := make(map[string]RunsOn)
+
+	for key, value := range parsedWorkflowFile {
+
+		jobName := key
+		if value.Name != "" {
+			jobName = value.Name
+		}
+
+		jobsAndRunners[jobName] = value.RunsOn
+	}
+
+	return jobsAndRunners, nil
 }

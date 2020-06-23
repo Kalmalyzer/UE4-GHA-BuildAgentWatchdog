@@ -54,7 +54,7 @@ jobs:
       - name: Upload game as Game-${{ github.sha }}
         run: .\UploadGame ${{ github.sha }}
 `
-	jobs, err := getJobsInWorkflowFile(yamlFile)
+	jobs, err := parseWorkflowFile(yamlFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,8 +89,83 @@ func TestParseGitHubActionsWorkflowFileFailed(t *testing.T) {
 	yamlFile := `
 blah
 `
-	_, err := getJobsInWorkflowFile(yamlFile)
+	_, err := parseWorkflowFile(yamlFile)
 	if err == nil {
 		t.Fatal("should have failed")
+	}
+}
+
+func TestGetJobsAndRunnersInWorkflowFile(t *testing.T) {
+
+	yamlFile := `
+name: Build
+
+on:
+  push:
+    ## Always build when there are new commits to master
+    #branches:
+    #  - master
+
+    # Always build release-tags
+    tags:
+      - 'releases/**'
+
+jobs:
+  placeholder:
+    runs-on: [ ubuntu-latest, ubuntu-1804 ]
+    steps:
+      - run: echo hello && sleep 60 && echo world
+
+  build-win64:
+    name: "Build for Win64"
+
+    runs-on: build_agent
+
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+        with:
+          clean: false
+
+      - name: Setup credentials for cloud storage
+        run: $env:LONGTAIL_GCLOUD_CREDENTIALS | Out-File FetchPrebuiltUE4\application-default-credentials.json -Encoding ASCII
+        env:
+          LONGTAIL_GCLOUD_CREDENTIALS: ${{ secrets.LONGTAIL_GCLOUD_CREDENTIALS }}
+
+      - name: Update UE4
+        run: .\UpdateUE4.bat
+
+      - name: Build game (Win64)
+        run: .\BuildGame.bat
+
+      - name: Upload game as Game-${{ github.sha }}
+        run: .\UploadGame ${{ github.sha }}
+`
+
+	jobsAndRunners, err := getJobsAndRunnersInWorkflowFile(yamlFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := jobsAndRunners["placeholder"]; ok {
+
+		if !reflect.DeepEqual(jobsAndRunners["placeholder"], RunsOn{"ubuntu-latest", "ubuntu-1804"}) {
+			t.Fatalf("placeholder runs-on should be [ubuntu-latest ubuntu-1804] but is %s", jobsAndRunners["placeholder"])
+		}
+
+	} else {
+		t.Fatal("The key \"placeholder\" should exist in the resulting jobs-and-runners map")
+	}
+
+	if _, ok := jobsAndRunners["Build for Win64"]; ok {
+
+		if !reflect.DeepEqual(jobsAndRunners["Build for Win64"], RunsOn{"build_agent"}) {
+			t.Fatalf("build-win64 runs-on should be [build_agent] but is %s", jobsAndRunners["build-win64"])
+		}
+
+	} else {
+		t.Fatal("The key \"Build for Win64\" should exist in the resulting jobs-and-runners map")
 	}
 }
