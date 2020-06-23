@@ -13,19 +13,6 @@ import (
 	"github.com/google/go-github/v32/github"
 )
 
-type GitHubApiRun struct {
-	Id          int    `json:"id"`
-	Status      string `json:"status"`
-	JobsUrl     string `json:"jobs_url"`
-	WorkflowUrl string `json:"workflow_url"`
-	HeadSha     string `json:"head_sha"`
-	WorkflowId  int64  `json:"workflow_id"`
-}
-
-type GitHubApiWorkflowRuns struct {
-	WorkflowRuns []GitHubApiRun `json:"workflow_runs"`
-}
-
 type GitHubApiJob struct {
 	Status string `json:"status"`
 	Name   string `json:"name"`
@@ -45,50 +32,41 @@ type GitHubApiSite struct {
 	Client     *http.Client
 }
 
-func getWorkflowRunsWithStatus(gitHubApiSite *GitHubApiSite, organization string, repository string, status string) ([]GitHubApiRun, error) {
+func getWorkflowRunsWithStatus(ctx context.Context, gitHubClient *github.Client, organization string, repository string, status string) (*github.WorkflowRuns, error) {
 
-	uri := fmt.Sprintf("%s/repos/%s/%s/actions/runs?status=%s", gitHubApiSite.BaseApiUrl.String(), organization, repository, status)
-	request, err := http.NewRequest("GET", uri, nil)
-	request.Header.Add("Accept", "application/vnd.github.v3+json")
-	response, err := gitHubApiSite.Client.Do(request)
+	options := &github.ListWorkflowRunsOptions{Status: status}
+
+	workflowRuns, _, err := gitHubClient.Actions.ListRepositoryWorkflowRuns(ctx, organization, repository, options)
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
 
-	defer response.Body.Close()
-
-	var workflowRuns GitHubApiWorkflowRuns
-	if err := json.NewDecoder(response.Body).Decode(&workflowRuns); err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
-	return workflowRuns.WorkflowRuns, nil
+	return workflowRuns, nil
 }
 
-func getQueuedWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string, repository string) ([]GitHubApiRun, error) {
+func getQueuedWorkflowRuns(ctx context.Context, gitHubClient *github.Client, organization string, repository string) (*github.WorkflowRuns, error) {
 
-	return getWorkflowRunsWithStatus(gitHubApiSite, organization, repository, "queued")
+	return getWorkflowRunsWithStatus(ctx, gitHubClient, organization, repository, "queued")
 }
 
-func getInProgressWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string, repository string) ([]GitHubApiRun, error) {
+func getInProgressWorkflowRuns(ctx context.Context, gitHubClient *github.Client, organization string, repository string) (*github.WorkflowRuns, error) {
 
-	return getWorkflowRunsWithStatus(gitHubApiSite, organization, repository, "in_progress")
+	return getWorkflowRunsWithStatus(ctx, gitHubClient, organization, repository, "in_progress")
 }
 
-func getActiveWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string, repository string) ([]GitHubApiRun, error) {
+func getActiveWorkflowRuns(ctx context.Context, gitHubClient *github.Client, organization string, repository string) ([]*github.WorkflowRun, error) {
 
-	queuedWorkflowRuns, err := getQueuedWorkflowRuns(gitHubApiSite, organization, repository)
+	queuedWorkflowRuns, err := getQueuedWorkflowRuns(ctx, gitHubClient, organization, repository)
 	if err != nil {
 		return nil, err
 	}
-	inProgressWorkflowRuns, err := getQueuedWorkflowRuns(gitHubApiSite, organization, repository)
+	inProgressWorkflowRuns, err := getQueuedWorkflowRuns(ctx, gitHubClient, organization, repository)
 	if err != nil {
 		return nil, err
 	}
 
-	activeWorkflowRuns := append(queuedWorkflowRuns, inProgressWorkflowRuns...)
+	activeWorkflowRuns := append(queuedWorkflowRuns.WorkflowRuns, inProgressWorkflowRuns.WorkflowRuns...)
 
 	return activeWorkflowRuns, nil
 }
@@ -129,7 +107,7 @@ func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, reposito
 	return string(content), nil
 }
 
-func getJobsForRun(gitHubApiSite *GitHubApiSite, organization string, repository string, run_id int) ([]GitHubApiJob, error) {
+func getJobsForRun(gitHubApiSite *GitHubApiSite, organization string, repository string, run_id int64) ([]GitHubApiJob, error) {
 
 	uri := fmt.Sprintf("%s/repos/%s/%s/actions/jobs/%d", gitHubApiSite.BaseApiUrl.String(), organization, repository, run_id)
 	log.Println(uri)

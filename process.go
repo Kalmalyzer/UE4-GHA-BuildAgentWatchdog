@@ -3,6 +3,8 @@ package watchdog
 import (
 	"context"
 	"log"
+	"strconv"
+	"strings"
 
 	"github.com/google/go-github/v32/github"
 	"google.golang.org/api/compute/v1"
@@ -51,9 +53,20 @@ func getRunnersRequiredByWorkflowRun(jobs []GitHubApiJob, jobsAndRunnersInWorkfl
 	return deduplicateRunners(runnersRequired)
 }
 
+func getWorkflowIdFromURL(url *string) (int64, error) {
+
+	segments := strings.Split(*url, "/")
+	workflowIdString := segments[len(segments)-1]
+	workflowId, err := strconv.ParseInt(workflowIdString, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return workflowId, nil
+}
+
 func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHubClient *github.Client, gitHubOrganization string, gitHubRepository string) ([]string, error) {
 
-	activeWorkflowRuns, err := getActiveWorkflowRuns(gitHubApiSite, gitHubOrganization, gitHubRepository)
+	activeWorkflowRuns, err := getActiveWorkflowRuns(ctx, gitHubClient, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		return nil, err
 	}
@@ -64,14 +77,19 @@ func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHu
 
 	for _, activeWorkflowRun := range activeWorkflowRuns {
 
-		workflow, err := getWorkflow(ctx, gitHubClient, gitHubOrganization, gitHubRepository, activeWorkflowRun.WorkflowId)
+		workflowId, err := getWorkflowIdFromURL(activeWorkflowRun.WorkflowURL)
+		if err != nil {
+			return nil, err
+		}
+
+		workflow, err := getWorkflow(ctx, gitHubClient, gitHubOrganization, gitHubRepository, workflowId)
 		if err != nil {
 			return nil, err
 		}
 
 		log.Printf("workflow: %v\n", workflow)
 
-		workflowFile, err := getWorkflowFile(gitHubApiSite, gitHubOrganization, gitHubRepository, activeWorkflowRun.HeadSha, workflow.Path)
+		workflowFile, err := getWorkflowFile(gitHubApiSite, gitHubOrganization, gitHubRepository, *activeWorkflowRun.HeadSHA, workflow.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +103,7 @@ func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHu
 
 		log.Printf("jobs and runners in workflow file: %v\n", jobsAndRunnersInWorkflowFile)
 
-		jobs, err := getJobsForRun(gitHubApiSite, gitHubOrganization, gitHubRepository, activeWorkflowRun.Id)
+		jobs, err := getJobsForRun(gitHubApiSite, gitHubOrganization, gitHubRepository, *activeWorkflowRun.ID)
 		if err != nil {
 			return nil, err
 		}
