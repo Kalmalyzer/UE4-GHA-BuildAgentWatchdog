@@ -2,26 +2,22 @@ package watchdog
 
 import (
 	"log"
-	"regexp"
 
 	"google.golang.org/api/compute/v1"
 )
 
-func getRunnersNeededByQueuedJobs(jobs []GitHubApiJob) []string {
+func deduplicateInstances(instances []OnDemandInstance) []OnDemandInstance {
+	instancesEncountered := make(map[string]bool)
+	var uniqueInstances []OnDemandInstance
 
-	var runners []string
-
-	re := regexp.MustCompile(`\[(\s*)runs-on:(\s*)(\S+)(\s*)\]`)
-	for _, job := range jobs {
-		if job.Status == "queued" {
-			if match := re.FindStringSubmatch(job.Name); match != nil && len(match) >= 3 {
-				runnerName := match[3]
-				runners = append(runners, runnerName)
-			}
+	for _, instance := range instances {
+		if _, exists := instancesEncountered[instance.RunnerName]; !exists {
+			instancesEncountered[instance.RunnerName] = true
+			uniqueInstances = append(uniqueInstances, instance)
 		}
 	}
 
-	return runners
+	return uniqueInstances
 }
 
 func deduplicateRunners(runners []string) []string {
@@ -38,49 +34,133 @@ func deduplicateRunners(runners []string) []string {
 	return uniqueRunners
 }
 
-func GetRunnersWaitedOn(gitHubApiSite *GitHubApiSite, organization string, repository string) ([]string, error) {
+func getRunnersRequiredByWorkflowRun(jobs []GitHubApiJob, jobsAndRunnersInWorkflowFile map[string]RunsOn) []string {
 
-	workflowRuns, err := getQueuedWorkflowRuns(gitHubApiSite, organization, repository)
+	var runnersRequired []string
+
+	for _, job := range jobs {
+		if job.Status != "completed" {
+			if _, exists := jobsAndRunnersInWorkflowFile[job.Name]; exists {
+				runnersRequired = append(runnersRequired, jobsAndRunnersInWorkflowFile[job.Name]...)
+			}
+		}
+	}
+
+	return deduplicateRunners(runnersRequired)
+}
+
+func getRunnersRequired(gitHubApiSite *GitHubApiSite, gitHubOrganization string, gitHubRepository string) ([]string, error) {
+
+	activeWorkflowRuns, err := getActiveWorkflowRuns(gitHubApiSite, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		return nil, err
 	}
 
-	var runners []string
+	log.Printf("Active workflow runs: %v\n", activeWorkflowRuns)
 
-	for _, run := range workflowRuns {
-		jobs, err := getJobsForRun(gitHubApiSite, run)
+	var runnersRequired []string
+
+	for _, activeWorkflowRun := range activeWorkflowRuns {
+
+		workflow, err := getWorkflow(gitHubApiSite, gitHubOrganization, gitHubRepository, activeWorkflowRun.WorkflowId)
 		if err != nil {
 			return nil, err
 		}
-		runners = append(runners, getRunnersNeededByQueuedJobs(jobs)...)
+
+		log.Printf("workflow: %v\n", workflow)
+
+		workflowFile, err := getWorkflowFile(gitHubApiSite, gitHubOrganization, gitHubRepository, activeWorkflowRun.HeadSha, workflow.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("workflow file: %v\n", workflowFile)
+
+		jobsAndRunnersInWorkflowFile, err := getJobsAndRunnersInWorkflowFile(workflowFile)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("jobs and runners in workflow file: %v\n", jobsAndRunnersInWorkflowFile)
+
+		jobs, err := getJobsForRun(gitHubApiSite, gitHubOrganization, gitHubRepository, activeWorkflowRun.Id)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("jobs: %v\n", jobs)
+
+		runnersRequired = append(runnersRequired, getRunnersRequiredByWorkflowRun(jobs, jobsAndRunnersInWorkflowFile)...)
 	}
 
-	uniqueRunners := deduplicateRunners(runners)
-
-	return uniqueRunners, nil
+	return deduplicateRunners(runnersRequired), nil
 }
 
-func Process(computeService *compute.Service, gitHubApiSite *GitHubApiSite, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]Instance, error) {
+func getInstancesToStart(runnersRequired []string, onDemandInstances []OnDemandInstance) []OnDemandInstance {
 
-	runnersWaitedOn, err := GetRunnersWaitedOn(gitHubApiSite, gitHubOrganization, gitHubRepository)
+	var instancesToStart []OnDemandInstance
+	onDemandInstancesMap := make(map[string]OnDemandInstance)
+
+	for _, onDemandInstance := range onDemandInstances {
+		onDemandInstancesMap[onDemandInstance.RunnerName] = onDemandInstance
+	}
+
+	for _, runnerRequired := range runnersRequired {
+		if onDemandInstance, exists := onDemandInstancesMap[runnerRequired]; exists {
+			if onDemandInstance.Status == "TERMINATED" {
+				instancesToStart = append(instancesToStart, onDemandInstance)
+			}
+		}
+	}
+
+	return deduplicateInstances(instancesToStart)
+}
+
+func getInstancesToStop(runnersRequired []string, onDemandInstances []OnDemandInstance) []OnDemandInstance {
+
+	var instancesToStop []OnDemandInstance
+	runnersRequiredMap := make(map[string]string)
+
+	for _, runner := range runnersRequired {
+		runnersRequiredMap[runner] = runner
+	}
+
+	for _, onDemandInstance := range onDemandInstances {
+		if _, exists := runnersRequiredMap[onDemandInstance.RunnerName]; !exists {
+			if onDemandInstance.Status == "RUNNING" {
+				instancesToStop = append(instancesToStop, onDemandInstance)
+			}
+		}
+	}
+
+	return deduplicateInstances(instancesToStop)
+}
+
+func Process(computeService *compute.Service, gitHubApiSite *GitHubApiSite, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]OnDemandInstance, error) {
+
+	runnersRequired, err := getRunnersRequired(gitHubApiSite, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("Runners waited on: %v\n", runnersWaitedOn)
+	log.Printf("Runners required: %v\n", runnersRequired)
 
-	stoppedInstances, err := GetStoppedOnDemandComputeWorkers(computeService, project, zone)
-	if err != nil {
-		return nil, err
-	}
+	onDemandInstances, err := getOnDemandInstances(computeService, project, zone)
 
-	log.Printf("Stopped instances: %v\n", stoppedInstances)
+	log.Printf("On-demand instances available: %v\n", onDemandInstances)
 
-	instancesToStart := GetInstancesToStart(runnersWaitedOn, stoppedInstances)
+	instancesToStart := getInstancesToStart(runnersRequired, onDemandInstances)
 
 	log.Printf("Instances to start: %v\n", instancesToStart)
 
-	if err := StartInstances(computeService, project, zone, instancesToStart); err != nil {
+	instancesToStop := getInstancesToStop(runnersRequired, onDemandInstances)
+	log.Printf("Instances to stop: %v\n", instancesToStop)
+
+	if err := startInstances(computeService, project, zone, instancesToStart); err != nil {
+		return nil, err
+	}
+
+	if err := stopInstances(computeService, project, zone, instancesToStart); err != nil {
 		return nil, err
 	}
 

@@ -29,11 +29,16 @@ func init() {
 		log.Fatalln(err)
 	}
 
-	gitHubApiSite = &GitHubApiSite{BaseUrl: *gitHubApiUrl, Client: &http.Client{}}
+	gitHubWebUrl, err := url.Parse("https://github.com")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	gitHubApiSite = &GitHubApiSite{BaseApiUrl: *gitHubApiUrl, BaseWebUrl: *gitHubWebUrl, Client: &http.Client{}}
 }
 
 type Result struct {
-	StartedInstances []Instance `json:"started_instances"`
+	StartedInstances []OnDemandInstance `json:"started_instances"`
 }
 
 func RunWatchdog(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +61,7 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if startedInstances == nil {
-		startedInstances = make([]Instance, 0)
+		startedInstances = make([]OnDemandInstance, 0)
 	}
 	result := &Result{StartedInstances: startedInstances}
 

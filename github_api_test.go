@@ -83,9 +83,10 @@ func TestGetWorkflowFile(t *testing.T) {
 	}))
 	defer teardown()
 
-	u, _ := url.Parse("http://example.com")
+	apiUrl, _ := url.Parse("http://api.example.com")
+	webUrl, _ := url.Parse("http://example.com")
 
-	gitHubSite := &GitHubApiSite{BaseUrl: *u, Client: httpClient}
+	gitHubSite := &GitHubApiSite{BaseApiUrl: *apiUrl, BaseWebUrl: *webUrl, Client: httpClient}
 
 	t.Run("Fetch workflow file that exists", func(t *testing.T) {
 
@@ -129,13 +130,14 @@ func TestGetWorkflow(t *testing.T) {
 	}))
 	defer teardown()
 
-	u, _ := url.Parse("http://example.com")
+	apiUrl, _ := url.Parse("http://api.example.com")
+	webUrl, _ := url.Parse("http://example.com")
 
-	gitHubSite := &GitHubApiSite{BaseUrl: *u, Client: httpClient}
+	gitHubSite := &GitHubApiSite{BaseApiUrl: *apiUrl, BaseWebUrl: *webUrl, Client: httpClient}
 
 	t.Run("Fetch workflow that exists", func(t *testing.T) {
 
-		workflow, err := getWorkflow(gitHubSite, "MyOrg", "MyRepo", "12345678")
+		workflow, err := getWorkflow(gitHubSite, "MyOrg", "MyRepo", 12345678)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -148,7 +150,7 @@ func TestGetWorkflow(t *testing.T) {
 
 	t.Run("Fetch workflow that does not exist", func(t *testing.T) {
 
-		_, err := getWorkflow(gitHubSite, "MyOrg2", "MyRepo2", "12345679")
+		_, err := getWorkflow(gitHubSite, "MyOrg2", "MyRepo2", 12345679)
 		if err == nil {
 			t.Fatal("Should have failed")
 		}

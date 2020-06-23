@@ -11,10 +11,12 @@ import (
 )
 
 type GitHubApiRun struct {
+	Id          int    `json:"id"`
 	Status      string `json:"status"`
 	JobsUrl     string `json:"jobs_url"`
 	WorkflowUrl string `json:"workflow_url"`
 	HeadSha     string `json:"head_sha"`
+	WorkflowId  int    `json:"workflow_id"`
 }
 
 type GitHubApiWorkflowRuns struct {
@@ -35,13 +37,14 @@ type GitHubApiWorkflow struct {
 }
 
 type GitHubApiSite struct {
-	BaseUrl url.URL
-	Client  *http.Client
+	BaseApiUrl url.URL
+	BaseWebUrl url.URL
+	Client     *http.Client
 }
 
 func getWorkflowRunsWithStatus(gitHubApiSite *GitHubApiSite, organization string, repository string, status string) ([]GitHubApiRun, error) {
 
-	uri := fmt.Sprintf("%s/repos/%s/%s/actions/runs?status=%s", gitHubApiSite.BaseUrl.String(), organization, repository, status)
+	uri := fmt.Sprintf("%s/repos/%s/%s/actions/runs?status=%s", gitHubApiSite.BaseApiUrl.String(), organization, repository, status)
 	request, err := http.NewRequest("GET", uri, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
 	response, err := gitHubApiSite.Client.Do(request)
@@ -71,9 +74,25 @@ func getInProgressWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string
 	return getWorkflowRunsWithStatus(gitHubApiSite, organization, repository, "in_progress")
 }
 
-func getWorkflow(gitHubApiSite *GitHubApiSite, organization string, repository string, workflow_id string) (GitHubApiWorkflow, error) {
+func getActiveWorkflowRuns(gitHubApiSite *GitHubApiSite, organization string, repository string) ([]GitHubApiRun, error) {
 
-	uri := fmt.Sprintf("%s/repos/%s/%s/actions/workflows/%s", gitHubApiSite.BaseUrl.String(), organization, repository, workflow_id)
+	queuedWorkflowRuns, err := getQueuedWorkflowRuns(gitHubApiSite, organization, repository)
+	if err != nil {
+		return nil, err
+	}
+	inProgressWorkflowRuns, err := getQueuedWorkflowRuns(gitHubApiSite, organization, repository)
+	if err != nil {
+		return nil, err
+	}
+
+	activeWorkflowRuns := append(queuedWorkflowRuns, inProgressWorkflowRuns...)
+
+	return activeWorkflowRuns, nil
+}
+
+func getWorkflow(gitHubApiSite *GitHubApiSite, organization string, repository string, workflow_id int) (GitHubApiWorkflow, error) {
+
+	uri := fmt.Sprintf("%s/repos/%s/%s/actions/workflows/%d", gitHubApiSite.BaseApiUrl.String(), organization, repository, workflow_id)
 	request, err := http.NewRequest("GET", uri, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
 	response, err := gitHubApiSite.Client.Do(request)
@@ -95,7 +114,7 @@ func getWorkflow(gitHubApiSite *GitHubApiSite, organization string, repository s
 
 func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, repository string, commit string, path string) (string, error) {
 
-	uri := fmt.Sprintf("%s/%s/%s/raw/%s/%s", gitHubApiSite.BaseUrl.String(), organization, repository, commit, path)
+	uri := fmt.Sprintf("%s/%s/%s/raw/%s/%s", gitHubApiSite.BaseWebUrl.String(), organization, repository, commit, path)
 	request, err := http.NewRequest("GET", uri, nil)
 	response, err := gitHubApiSite.Client.Do(request)
 	if err != nil {
@@ -118,9 +137,11 @@ func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, reposito
 	return string(content), nil
 }
 
-func getJobsForRun(gitHubApiSite *GitHubApiSite, run GitHubApiRun) ([]GitHubApiJob, error) {
+func getJobsForRun(gitHubApiSite *GitHubApiSite, organization string, repository string, run_id int) ([]GitHubApiJob, error) {
 
-	request, err := http.NewRequest("GET", run.JobsUrl, nil)
+	uri := fmt.Sprintf("%s/repos/%s/%s/actions/jobs/%d", gitHubApiSite.BaseApiUrl.String(), organization, repository, run_id)
+	log.Println(uri)
+	request, err := http.NewRequest("GET", uri, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
 	response, err := gitHubApiSite.Client.Do(request)
 	if err != nil {

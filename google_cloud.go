@@ -6,12 +6,13 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-type Instance struct {
+type OnDemandInstance struct {
 	InstanceName string `json:"instance_name"`
 	RunnerName   string `json:"runner_name"`
+	Status       string `json:"status"`
 }
 
-func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project string, zone string) ([]Instance, error) {
+func getOnDemandInstances(computeService *compute.Service, project string, zone string) ([]OnDemandInstance, error) {
 
 	instancesCall := computeService.Instances.List(project, zone)
 	instances, err := instancesCall.Do()
@@ -20,7 +21,7 @@ func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project s
 		return nil, err
 	}
 
-	var terminatedInstances []Instance
+	var onDemandInstances []OnDemandInstance
 
 	for _, instance := range instances.Items {
 
@@ -32,43 +33,36 @@ func GetStoppedOnDemandComputeWorkers(computeService *compute.Service, project s
 			}
 		}
 
-		if (runnerName != "") && (instance.Status == "TERMINATED") {
-			terminatedInstances = append(terminatedInstances, Instance{InstanceName: instance.Name, RunnerName: runnerName})
+		if runnerName != "" {
+			onDemandInstances = append(onDemandInstances, OnDemandInstance{InstanceName: instance.Name, RunnerName: runnerName, Status: instance.Status})
 		}
 	}
 
-	return terminatedInstances, nil
+	return onDemandInstances, nil
 }
 
-func GetInstancesToStart(runnersWaitedOn []string, stoppedInstances []Instance) []Instance {
-	stoppedInstancesMap := make(map[string]Instance)
-	instancesToStartMap := make(map[string]Instance)
-
-	for _, instance := range stoppedInstances {
-		stoppedInstancesMap[instance.RunnerName] = instance
-	}
-
-	for _, runner := range runnersWaitedOn {
-		if _, exists := stoppedInstancesMap[runner]; exists {
-			instancesToStartMap[runner] = stoppedInstancesMap[runner]
-		}
-	}
-
-	var instancesToStart []Instance
-
-	for _, instance := range instancesToStartMap {
-		instancesToStart = append(instancesToStart, instance)
-	}
-
-	return instancesToStart
-}
-
-func StartInstances(computeService *compute.Service, project string, zone string, instancesToStart []Instance) error {
+func startInstances(computeService *compute.Service, project string, zone string, instancesToStart []OnDemandInstance) error {
 
 	for _, instance := range instancesToStart {
 
 		log.Printf("Starting instance: %v\n", instance)
 		instanceStartCall := computeService.Instances.Start(project, zone, instance.InstanceName)
+		_, err := instanceStartCall.Do()
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func stopInstances(computeService *compute.Service, project string, zone string, instancesToStop []OnDemandInstance) error {
+
+	for _, instance := range instancesToStop {
+
+		log.Printf("Stopping instance: %v\n", instance)
+		instanceStartCall := computeService.Instances.Stop(project, zone, instance.InstanceName)
 		_, err := instanceStartCall.Do()
 		if err != nil {
 			log.Println(err)
