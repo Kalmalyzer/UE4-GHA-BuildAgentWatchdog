@@ -13,7 +13,7 @@ type Run struct {
 	JobsUrl string `json:"jobs_url"`
 }
 
-type Workflows struct {
+type WorkflowRuns struct {
 	WorkflowRuns []Run `json:"workflow_runs"`
 }
 
@@ -26,7 +26,7 @@ type Jobs struct {
 	Jobs []Job `json:"jobs"`
 }
 
-func getWorkflows(client *http.Client, organization string, repository string, status string) (Workflows, error) {
+func getWorkflowRunsWithStatus(client *http.Client, organization string, repository string, status string) ([]Run, error) {
 
 	uri := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/runs?status=%s", organization, repository, status)
 	request, err := http.NewRequest("GET", uri, nil)
@@ -34,33 +34,33 @@ func getWorkflows(client *http.Client, organization string, repository string, s
 	response, err := client.Do(request)
 	if err != nil {
 		log.Println(err)
-		return Workflows{}, err
+		return nil, err
 	}
 
 	defer response.Body.Close()
 
-	var workflows Workflows
-	if err := json.NewDecoder(response.Body).Decode(&workflows); err != nil {
+	var workflowRuns WorkflowRuns
+	if err := json.NewDecoder(response.Body).Decode(&workflowRuns); err != nil {
 		log.Println(err)
-		return Workflows{}, err
+		return nil, err
 	}
 
-	return workflows, nil
+	return workflowRuns.WorkflowRuns, nil
 }
 
-func getQueuedWorkflows(client *http.Client, organization string, repository string) (Workflows, error) {
+func getQueuedWorkflowRuns(client *http.Client, organization string, repository string) ([]Run, error) {
 
-	return getWorkflows(client, organization, repository, "queued")
+	return getWorkflowRunsWithStatus(client, organization, repository, "queued")
 }
 
-func getJobsForRun(client *http.Client, run Run) (Jobs, error) {
+func getJobsForRun(client *http.Client, run Run) ([]Job, error) {
 
 	request, err := http.NewRequest("GET", run.JobsUrl, nil)
 	request.Header.Add("Accept", "application/vnd.github.v3+json")
 	response, err := client.Do(request)
 	if err != nil {
 		log.Println(err)
-		return Jobs{}, err
+		return nil, err
 	}
 
 	defer response.Body.Close()
@@ -68,10 +68,10 @@ func getJobsForRun(client *http.Client, run Run) (Jobs, error) {
 	var jobs Jobs
 	if err := json.NewDecoder(response.Body).Decode(&jobs); err != nil {
 		log.Println(err)
-		return Jobs{}, err
+		return nil, err
 	}
 
-	return jobs, nil
+	return jobs.Jobs, nil
 }
 
 func getRunnersNeededByQueuedJobs(jobs []Job) []string {
@@ -107,19 +107,19 @@ func deduplicateRunners(runners []string) []string {
 
 func GetRunnersWaitedOn(client *http.Client, organization string, repository string) ([]string, error) {
 
-	workflows, err := getQueuedWorkflows(client, organization, repository)
+	workflowRuns, err := getQueuedWorkflowRuns(client, organization, repository)
 	if err != nil {
 		return nil, err
 	}
 
 	var runners []string
 
-	for _, run := range workflows.WorkflowRuns {
+	for _, run := range workflowRuns {
 		jobs, err := getJobsForRun(client, run)
 		if err != nil {
 			return nil, err
 		}
-		runners = append(runners, getRunnersNeededByQueuedJobs(jobs.Jobs)...)
+		runners = append(runners, getRunnersNeededByQueuedJobs(jobs)...)
 	}
 
 	uniqueRunners := deduplicateRunners(runners)
