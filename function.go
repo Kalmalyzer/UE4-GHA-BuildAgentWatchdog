@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/google/go-github/v32/github"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/compute/v1"
 )
 
@@ -27,7 +28,11 @@ func init() {
 		log.Fatalln(err)
 	}
 
-	httpClient = &http.Client{}
+	accessToken := os.Getenv("GITHUB_PAT")
+
+	tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: accessToken})
+	httpClient := oauth2.NewClient(ctx, tokenSource)
+
 	gitHubClient = github.NewClient(httpClient)
 }
 
