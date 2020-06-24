@@ -47,7 +47,7 @@ func getActiveWorkflowRuns(ctx context.Context, gitHubClient *github.Client, org
 	if err != nil {
 		return nil, err
 	}
-	inProgressWorkflowRuns, err := getQueuedWorkflowRuns(ctx, gitHubClient, organization, repository)
+	inProgressWorkflowRuns, err := getInProgressWorkflowRuns(ctx, gitHubClient, organization, repository)
 	if err != nil {
 		return nil, err
 	}
