@@ -3,6 +3,7 @@ package watchdog
 import (
 	"context"
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -64,7 +65,7 @@ func getWorkflowIdFromURL(url *string) (int64, error) {
 	return workflowId, nil
 }
 
-func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHubClient *github.Client, gitHubOrganization string, gitHubRepository string) ([]string, error) {
+func getRunnersRequired(ctx context.Context, httpClient *http.Client, gitHubClient *github.Client, gitHubOrganization string, gitHubRepository string) ([]string, error) {
 
 	activeWorkflowRuns, err := getActiveWorkflowRuns(ctx, gitHubClient, gitHubOrganization, gitHubRepository)
 	if err != nil {
@@ -87,7 +88,7 @@ func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHu
 			return nil, err
 		}
 
-		workflowFile, err := getWorkflowFile(gitHubApiSite, gitHubOrganization, gitHubRepository, *activeWorkflowRun.HeadSHA, *workflow.Path)
+		workflowFile, err := getWorkflowFile(httpClient, gitHubOrganization, gitHubRepository, *activeWorkflowRun.HeadSHA, *workflow.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -150,9 +151,9 @@ func getInstancesToStop(runnersRequired []string, onDemandInstances []OnDemandIn
 	return deduplicateInstances(instancesToStop)
 }
 
-func Process(ctx context.Context, computeService *compute.Service, gitHubApiSite *GitHubApiSite, gitHubClient *github.Client, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]OnDemandInstance, []OnDemandInstance, error) {
+func Process(ctx context.Context, computeService *compute.Service, httpClient *http.Client, gitHubClient *github.Client, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]OnDemandInstance, []OnDemandInstance, error) {
 
-	runnersRequired, err := getRunnersRequired(ctx, gitHubApiSite, gitHubClient, gitHubOrganization, gitHubRepository)
+	runnersRequired, err := getRunnersRequired(ctx, httpClient, gitHubClient, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		return nil, nil, err
 	}

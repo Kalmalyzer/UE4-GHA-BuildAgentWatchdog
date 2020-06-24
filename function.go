@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/google/go-github/v32/github"
@@ -16,8 +15,8 @@ import (
 
 var ctx context.Context
 var computeService *compute.Service
-var gitHubApiSite *GitHubApiSite
 
+var httpClient *http.Client
 var gitHubClient *github.Client
 
 func init() {
@@ -28,19 +27,8 @@ func init() {
 		log.Fatalln(err)
 	}
 
-	gitHubApiUrl, err := url.Parse("https://api.github.com")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	gitHubWebUrl, err := url.Parse("https://github.com")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	gitHubApiSite = &GitHubApiSite{BaseApiUrl: *gitHubApiUrl, BaseWebUrl: *gitHubWebUrl, Client: &http.Client{}}
-
-	gitHubClient = github.NewClient(nil)
+	httpClient = &http.Client{}
+	gitHubClient = github.NewClient(httpClient)
 }
 
 type Result struct {
@@ -60,7 +48,7 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	gitHubOrganization := os.Getenv("GITHUB_ORGANIZATION")
 	gitHubRepository := os.Getenv("GITHUB_REPOSITORY")
 
-	startedInstances, stoppedInstances, err := Process(ctx, computeService, gitHubApiSite, gitHubClient, project, zone, gitHubOrganization, gitHubRepository)
+	startedInstances, stoppedInstances, err := Process(ctx, computeService, httpClient, gitHubClient, project, zone, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error during processing: %v", err)

@@ -7,16 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 
 	"github.com/google/go-github/v32/github"
 )
-
-type GitHubApiSite struct {
-	BaseApiUrl url.URL
-	BaseWebUrl url.URL
-	Client     *http.Client
-}
 
 func getWorkflowRunsWithStatus(ctx context.Context, gitHubClient *github.Client, organization string, repository string, status string) (*github.WorkflowRuns, error) {
 
@@ -68,11 +61,11 @@ func getWorkflow(context context.Context, gitHubClient *github.Client, organizat
 	return workflow, nil
 }
 
-func getWorkflowFile(gitHubApiSite *GitHubApiSite, organization string, repository string, commit string, path string) (string, error) {
+func getWorkflowFile(httpClient *http.Client, organization string, repository string, commit string, path string) (string, error) {
 
-	uri := fmt.Sprintf("%s/%s/%s/raw/%s/%s", gitHubApiSite.BaseWebUrl.String(), organization, repository, commit, path)
+	uri := fmt.Sprintf("https://github.com/%s/%s/raw/%s/%s", organization, repository, commit, path)
 	request, err := http.NewRequest("GET", uri, nil)
-	response, err := gitHubApiSite.Client.Do(request)
+	response, err := httpClient.Do(request)
 	if err != nil {
 		log.Println(err)
 		return "", err

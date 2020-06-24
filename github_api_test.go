@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/google/go-github/v32/github"
@@ -85,14 +84,9 @@ func TestGetWorkflowFile(t *testing.T) {
 	}))
 	defer teardown()
 
-	apiUrl, _ := url.Parse("http://api.example.com")
-	webUrl, _ := url.Parse("http://example.com")
-
-	gitHubSite := &GitHubApiSite{BaseApiUrl: *apiUrl, BaseWebUrl: *webUrl, Client: httpClient}
-
 	t.Run("Fetch workflow file that exists", func(t *testing.T) {
 
-		_, err := getWorkflowFile(gitHubSite, "MyOrg", "MyRepo", "12345678", ".github/workflows/build.yaml")
+		_, err := getWorkflowFile(httpClient, "MyOrg", "MyRepo", "12345678", ".github/workflows/build.yaml")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,7 +94,7 @@ func TestGetWorkflowFile(t *testing.T) {
 
 	t.Run("Fetch workflow file that does not exist", func(t *testing.T) {
 
-		_, err := getWorkflowFile(gitHubSite, "MyOrg2", "MyRepo2", "12345679", ".github/workflows/build.yaml")
+		_, err := getWorkflowFile(httpClient, "MyOrg2", "MyRepo2", "12345679", ".github/workflows/build.yaml")
 		if err == nil {
 			t.Fatal("Should have failed")
 		}
@@ -145,7 +139,7 @@ func TestGetWorkflow(t *testing.T) {
 
 		expectedPath := ".github/workflows/blank.yml"
 		if *workflow.Path != expectedPath {
-			t.Fatalf("workflow.Path expected: \"%s\", actual: \"%s\"", expectedPath, workflow.Path)
+			t.Fatalf("workflow.Path expected: \"%v\", actual: \"%v\"", expectedPath, workflow.Path)
 		}
 	})
 
