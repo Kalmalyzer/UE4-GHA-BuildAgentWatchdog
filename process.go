@@ -71,11 +71,11 @@ func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHu
 		return nil, err
 	}
 
-	log.Printf("Active workflow runs: %v\n", activeWorkflowRuns)
-
 	var runnersRequired []string
 
 	for _, activeWorkflowRun := range activeWorkflowRuns {
+
+		log.Printf("Workflow run id: %v\n", *activeWorkflowRun.ID)
 
 		workflowId, err := getWorkflowIdFromURL(activeWorkflowRun.WorkflowURL)
 		if err != nil {
@@ -87,14 +87,10 @@ func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHu
 			return nil, err
 		}
 
-		log.Printf("workflow: %v\n", workflow)
-
 		workflowFile, err := getWorkflowFile(gitHubApiSite, gitHubOrganization, gitHubRepository, *activeWorkflowRun.HeadSHA, *workflow.Path)
 		if err != nil {
 			return nil, err
 		}
-
-		log.Printf("workflow file: %v\n", workflowFile)
 
 		jobsAndRunnersInWorkflowFile, err := getJobsAndRunnersInWorkflowFile(workflowFile)
 		if err != nil {
@@ -107,8 +103,6 @@ func getRunnersRequired(ctx context.Context, gitHubApiSite *GitHubApiSite, gitHu
 		if err != nil {
 			return nil, err
 		}
-
-		log.Printf("jobs: %v\n", jobs)
 
 		runnersRequired = append(runnersRequired, getRunnersRequiredByWorkflowRun(jobs, jobsAndRunnersInWorkflowFile)...)
 	}
