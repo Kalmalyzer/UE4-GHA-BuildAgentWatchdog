@@ -45,6 +45,7 @@ func init() {
 
 type Result struct {
 	StartedInstances []OnDemandInstance `json:"started_instances"`
+	StoppedInstances []OnDemandInstance `json:"stopped_instances"`
 }
 
 func RunWatchdog(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +60,7 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	gitHubOrganization := os.Getenv("GITHUB_ORGANIZATION")
 	gitHubRepository := os.Getenv("GITHUB_REPOSITORY")
 
-	startedInstances, err := Process(ctx, computeService, gitHubApiSite, gitHubClient, project, zone, gitHubOrganization, gitHubRepository)
+	startedInstances, stoppedInstances, err := Process(ctx, computeService, gitHubApiSite, gitHubClient, project, zone, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error during processing: %v", err)
@@ -69,7 +70,10 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	if startedInstances == nil {
 		startedInstances = make([]OnDemandInstance, 0)
 	}
-	result := &Result{StartedInstances: startedInstances}
+	if stoppedInstances == nil {
+		stoppedInstances = make([]OnDemandInstance, 0)
+	}
+	result := &Result{StartedInstances: startedInstances, StoppedInstances: stoppedInstances}
 
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

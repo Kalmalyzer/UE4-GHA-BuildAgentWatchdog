@@ -156,11 +156,11 @@ func getInstancesToStop(runnersRequired []string, onDemandInstances []OnDemandIn
 	return deduplicateInstances(instancesToStop)
 }
 
-func Process(ctx context.Context, computeService *compute.Service, gitHubApiSite *GitHubApiSite, gitHubClient *github.Client, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]OnDemandInstance, error) {
+func Process(ctx context.Context, computeService *compute.Service, gitHubApiSite *GitHubApiSite, gitHubClient *github.Client, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]OnDemandInstance, []OnDemandInstance, error) {
 
 	runnersRequired, err := getRunnersRequired(ctx, gitHubApiSite, gitHubClient, gitHubOrganization, gitHubRepository)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Printf("Runners required: %v\n", runnersRequired)
@@ -177,12 +177,12 @@ func Process(ctx context.Context, computeService *compute.Service, gitHubApiSite
 	log.Printf("Instances to stop: %v\n", instancesToStop)
 
 	if err := startInstances(computeService, project, zone, instancesToStart); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := stopInstances(computeService, project, zone, instancesToStop); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return instancesToStart, nil
+	return instancesToStart, instancesToStop, nil
 }
