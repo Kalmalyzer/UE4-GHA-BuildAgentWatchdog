@@ -2,13 +2,12 @@ package watchdog
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"github.com/google/go-github/v32/github"
+	"github.com/pkg/errors"
 )
 
 func getWorkflowRunsWithStatus(ctx context.Context, gitHubClient *github.Client, organization string, repository string, status string) (*github.WorkflowRuns, error) {
@@ -17,8 +16,7 @@ func getWorkflowRunsWithStatus(ctx context.Context, gitHubClient *github.Client,
 
 	workflowRuns, _, err := gitHubClient.Actions.ListRepositoryWorkflowRuns(ctx, organization, repository, options)
 	if err != nil {
-		log.Println(err)
-		return nil, err
+		return nil, errors.Wrapf(err, "github.Client.Actions.ListRepositoryWorkflowRuns(%v, %v, %v) failed", organization, repository, options)
 	}
 
 	return workflowRuns, nil
@@ -54,8 +52,7 @@ func getWorkflow(context context.Context, gitHubClient *github.Client, organizat
 
 	workflow, _, err := gitHubClient.Actions.GetWorkflowByID(context, organization, repository, workflow_id)
 	if err != nil {
-		log.Println(err)
-		return nil, err
+		return nil, errors.Wrapf(err, "github.Client.Actions.GetWorkflowByID(%v, %v, %v) failed", organization, repository, workflow_id)
 	}
 
 	return workflow, nil
@@ -67,20 +64,18 @@ func getWorkflowFile(httpClient *http.Client, organization string, repository st
 	request, err := http.NewRequest("GET", uri, nil)
 	response, err := httpClient.Do(request)
 	if err != nil {
-		log.Println(err)
-		return "", err
+		return "", errors.Wrapf(err, "HTTP GET %v failed", uri)
 	}
 
 	defer response.Body.Close()
 
 	content, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Println(err)
-		return "", err
+		return "", errors.Wrapf(err, "Error while reading HTTP response from HTTP GET %v", uri)
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return "", errors.New(response.Status)
+		return "", errors.Errorf("HTTP GET %v returned status code %v", uri, response.Status)
 	}
 
 	return string(content), nil
@@ -90,8 +85,7 @@ func getJobsForRun(ctx context.Context, gitHubClient *github.Client, organizatio
 
 	jobs, _, err := gitHubClient.Actions.ListWorkflowJobs(ctx, organization, repository, runId, nil)
 	if err != nil {
-		log.Println(err)
-		return nil, err
+		return nil, errors.Wrapf(err, "github.Client.Actions.ListWorkflowJobs(%v, %v, %v) failed", organization, repository, runId)
 	}
 
 	return jobs.Jobs, nil

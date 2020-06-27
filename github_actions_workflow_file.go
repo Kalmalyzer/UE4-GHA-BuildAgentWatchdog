@@ -1,8 +1,7 @@
 package watchdog
 
 import (
-	"errors"
-
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -38,7 +37,7 @@ func parseWorkflowFile(workflowFile string) (map[string]GitHubWorkflowYamlJob, e
 	var jobs GitHubWorkflowYamlJobs
 
 	if err := yaml.Unmarshal([]byte(workflowFile), &jobs); err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Error while unmarshaling workflow file %v into structured data", workflowFile)
 	}
 
 	return jobs.Jobs, nil

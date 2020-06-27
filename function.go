@@ -45,6 +45,7 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	if _, err := ioutil.ReadAll(r.Body); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error while discarding body: %v", err)
+		log.Printf("%+v\n", err)
 		return
 	}
 
@@ -57,6 +58,7 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error during processing: %v", err)
+		log.Printf("%+v\n", err)
 		return
 	}
 
@@ -71,6 +73,7 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error during result json encoding: %v", err)
+		log.Printf("%+v\n", err)
 		return
 	}
 }

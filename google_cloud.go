@@ -3,6 +3,7 @@ package watchdog
 import (
 	"log"
 
+	"github.com/pkg/errors"
 	"google.golang.org/api/compute/v1"
 )
 
@@ -17,8 +18,7 @@ func getOnDemandInstances(computeService *compute.Service, project string, zone 
 	instancesCall := computeService.Instances.List(project, zone)
 	instances, err := instancesCall.Do()
 	if err != nil {
-		log.Println(err)
-		return nil, err
+		return nil, errors.Wrapf(err, "compute.Service.Instances.List(%v, %v) failed", project, zone)
 	}
 
 	var onDemandInstances []OnDemandInstance
@@ -49,8 +49,7 @@ func startInstances(computeService *compute.Service, project string, zone string
 		instanceStartCall := computeService.Instances.Start(project, zone, instance.InstanceName)
 		_, err := instanceStartCall.Do()
 		if err != nil {
-			log.Println(err)
-			return err
+			return errors.Wrapf(err, "compute.Service.Instances.Start(%v, %v, %v) failed", project, zone, instance.InstanceName)
 		}
 	}
 
@@ -65,8 +64,7 @@ func stopInstances(computeService *compute.Service, project string, zone string,
 		instanceStartCall := computeService.Instances.Stop(project, zone, instance.InstanceName)
 		_, err := instanceStartCall.Do()
 		if err != nil {
-			log.Println(err)
-			return err
+			return errors.Wrapf(err, "compute.Service.Instances.Stop(%v, %v, %v) failed", project, zone, instance.InstanceName)
 		}
 	}
 
