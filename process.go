@@ -158,11 +158,11 @@ func Process(ctx context.Context, computeService *compute.Service, httpClient *h
 		return nil, nil, err
 	}
 
-	log.Printf("Runners required: %v\n", runnersRequired)
+	log.Printf("Runners required for GitHub repo %v/%v: %v\n", gitHubOrganization, gitHubRepository, runnersRequired)
 
 	onDemandInstances, err := getOnDemandInstances(computeService, project, zone)
 
-	log.Printf("On-demand instances available: %v\n", onDemandInstances)
+	log.Printf("On-demand instances available in GCE project %v zone %v: %v\n", project, zone, onDemandInstances)
 
 	instancesToStart := getInstancesToStart(runnersRequired, onDemandInstances)
 
