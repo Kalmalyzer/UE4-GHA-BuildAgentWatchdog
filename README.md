@@ -7,10 +7,10 @@ This program starts any sleeping build agent VMs that are needed by the GitHub A
 Install this program as a Google Cloud Function.
 
 Define the following environment variables:
-* `GCP_PROJECT` - project ID for a Google Cloud Platform project that contains the build agent VMs
+* `GOOGLE_CLOUD_PROJECT` - project ID for a Google Cloud Platform project that contains the build agent VMs
 * `GCE_ZONE` - zone where the build agent VMs reside
 * `GITHUB_ORGANIZATION` - GitHub organization containing the game project
-* `GITHUB_PROJECT` - GitHub project containing the game project
+* `GITHUB_REPOSITORY` - GitHub project containing the game project
 * `GITHUB_PAT` - Personal Access Token that allows querying the GitHub Actions REST API for the game project, and downloading files from the game project repository
 
 

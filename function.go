@@ -83,7 +83,7 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := os.Getenv("GCP_PROJECT")
+	project := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if project == "" {
 		produceInternalServerError(w, "Misconfigured function: GCP_PROJECT must be set")
 		return
