@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"runtime/debug"
 
 	"github.com/google/go-github/v32/github"
 	"golang.org/x/oauth2"
@@ -44,11 +43,14 @@ type Result struct {
 
 func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 
+	// Any panics within the application will result in a HTTP 500 Internal Server Error response
+	// This handler ensures that:
+	// * The panic error + stacktrace is visible in GCP's Logging, with severity "ERROR"
+	// * The error shows up in GCP's Error Reporting
+	// * The panic error + stacktrace is returned in the HTTP response body
 	defer func() {
 		if r := recover(); r != nil {
 			err := r.(error)
-			log.Printf("Panic: %+v\n", err)
-			debug.PrintStack()
 			w.WriteHeader(http.StatusInternalServerError)
 			panic(err)
 		}
