@@ -37,8 +37,10 @@ func init() {
 }
 
 type Result struct {
-	StartedInstances []OnDemandInstance `json:"started_instances"`
-	StoppedInstances []OnDemandInstance `json:"stopped_instances"`
+	RunnersRequired   []string           `json:"runners_required"`
+	OnDemandInstances []OnDemandInstance `json:"on_demand_instances"`
+	StartedInstances  []OnDemandInstance `json:"started_instances"`
+	StoppedInstances  []OnDemandInstance `json:"stopped_instances"`
 }
 
 type LogMessage struct {
@@ -105,19 +107,25 @@ func RunWatchdog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	startedInstances, stoppedInstances, err := Process(ctx, computeService, httpClient, gitHubClient, project, zone, gitHubOrganization, gitHubRepository)
+	runnersRequired, onDemandInstances, startedInstances, stoppedInstances, err := Process(ctx, computeService, httpClient, gitHubClient, project, zone, gitHubOrganization, gitHubRepository)
 	if err != nil {
 		produceInternalServerError(w, "Error during processing: %+v\n", err)
 		return
 	}
 
+	if runnersRequired == nil {
+		runnersRequired = make([]string, 0)
+	}
+	if onDemandInstances == nil {
+		onDemandInstances = make([]OnDemandInstance, 0)
+	}
 	if startedInstances == nil {
 		startedInstances = make([]OnDemandInstance, 0)
 	}
 	if stoppedInstances == nil {
 		stoppedInstances = make([]OnDemandInstance, 0)
 	}
-	result := &Result{StartedInstances: startedInstances, StoppedInstances: stoppedInstances}
+	result := &Result{RunnersRequired: runnersRequired, OnDemandInstances: onDemandInstances, StartedInstances: startedInstances, StoppedInstances: stoppedInstances}
 
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		produceInternalServerError(w, "Error during result json encoding: %+v\n", err)
