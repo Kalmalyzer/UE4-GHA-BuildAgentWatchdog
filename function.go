@@ -31,7 +31,7 @@ func init() {
 	accessToken := os.Getenv("GITHUB_PAT")
 
 	tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: accessToken})
-	httpClient := oauth2.NewClient(ctx, tokenSource)
+	httpClient = oauth2.NewClient(ctx, tokenSource)
 
 	gitHubClient = github.NewClient(httpClient)
 }
