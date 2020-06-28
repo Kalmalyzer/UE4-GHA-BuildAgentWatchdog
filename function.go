@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime/debug"
 
 	"github.com/google/go-github/v32/github"
 	"golang.org/x/oauth2"
@@ -42,6 +43,17 @@ type Result struct {
 }
 
 func RunWatchdog(w http.ResponseWriter, r *http.Request) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			err := r.(error)
+			log.Printf("Panic: %+v\n", err)
+			debug.PrintStack()
+			w.WriteHeader(http.StatusInternalServerError)
+			panic(err)
+		}
+	}()
+
 	if _, err := ioutil.ReadAll(r.Body); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error while discarding body: %v", err)
