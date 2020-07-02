@@ -10,6 +10,7 @@ import (
 type OnDemandInstance struct {
 	InstanceName string `json:"instance_name"`
 	RunnerName   string `json:"runner_name"`
+	GitHubScope  string `json:"github_scope"`
 	Status       string `json:"status"`
 }
 
@@ -26,15 +27,27 @@ func getOnDemandInstances(computeService *compute.Service, project string, zone 
 	for _, instance := range instances.Items {
 
 		var runnerName string
+		var gitHubScope string
+		var onDemand string
 
 		for _, item := range instance.Metadata.Items {
 			if item.Key == "runner-name" {
 				runnerName = *item.Value
 			}
+
+			if item.Key == "github-scope" {
+				gitHubScope = *item.Value
+			}
+
+			if item.Key == "on-demand" {
+				onDemand = *item.Value
+			}
 		}
 
-		if runnerName != "" {
-			onDemandInstances = append(onDemandInstances, OnDemandInstance{InstanceName: instance.Name, RunnerName: runnerName, Status: instance.Status})
+		log.Printf("Enumerating instance - name: \"%s\", runnerName: \"%s\", gitHubScope: \"%s\", status: \"%s\"\n", instance.Name, runnerName, gitHubScope, instance.Status)
+
+		if onDemand == "true" && gitHubScope != "" && runnerName != "" {
+			onDemandInstances = append(onDemandInstances, OnDemandInstance{InstanceName: instance.Name, RunnerName: runnerName, GitHubScope: gitHubScope, Status: instance.Status})
 		}
 	}
 

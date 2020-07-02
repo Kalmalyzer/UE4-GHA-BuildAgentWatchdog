@@ -2,6 +2,7 @@ package watchdog
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -111,6 +112,25 @@ func getRunnersRequired(ctx context.Context, httpClient *http.Client, gitHubClie
 	return deduplicateRunners(runnersRequired), nil
 }
 
+func getOnDemandInstancesForRepository(computeService *compute.Service, project string, zone string, gitHubOrganization string, gitHubRepository string) ([]OnDemandInstance, error) {
+	onDemandInstances, err := getOnDemandInstances(computeService, project, zone)
+	if err != nil {
+		return nil, err
+	}
+
+	var onDemandInstancesForRepository []OnDemandInstance
+
+	expectedScope := fmt.Sprintf("%s/%s", gitHubOrganization, gitHubRepository)
+
+	for _, instance := range onDemandInstances {
+		if instance.GitHubScope == expectedScope {
+			onDemandInstancesForRepository = append(onDemandInstancesForRepository, instance)
+		}
+	}
+
+	return onDemandInstancesForRepository, nil
+}
+
 func getInstancesToStart(runnersRequired []string, onDemandInstances []OnDemandInstance) []OnDemandInstance {
 
 	var instancesToStart []OnDemandInstance
@@ -160,7 +180,10 @@ func Process(ctx context.Context, computeService *compute.Service, httpClient *h
 
 	log.Printf("Runners required for GitHub repo %v/%v: %v\n", gitHubOrganization, gitHubRepository, runnersRequired)
 
-	onDemandInstances, err := getOnDemandInstances(computeService, project, zone)
+	onDemandInstances, err := getOnDemandInstancesForRepository(computeService, project, zone, gitHubOrganization, gitHubRepository)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
 
 	log.Printf("On-demand instances available in GCE project %v zone %v: %v\n", project, zone, onDemandInstances)
 
