@@ -60,7 +60,7 @@ func getWorkflow(context context.Context, gitHubClient *github.Client, organizat
 
 func getWorkflowFile(httpClient *http.Client, organization string, repository string, commit string, path string) (string, error) {
 
-	uri := fmt.Sprintf("https://github.com/%s/%s/raw/%s/%s", organization, repository, commit, path)
+	uri := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", organization, repository, commit, path)
 	request, err := http.NewRequest("GET", uri, nil)
 	response, err := httpClient.Do(request)
 	if err != nil {
